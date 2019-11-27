@@ -26,6 +26,17 @@ import (
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
+var userAppErrorIDs = map[uint64]bool{
+	8:  true,
+	13: true,
+	24: true,
+	25: true,
+	31: true,
+	43: true,
+	66: true,
+	67: true,
+}
+
 func check(err error) {
 	if err != nil {
 		log.Panicln("Fatal:", err)
@@ -42,8 +53,8 @@ func getDevices() []*pluginapi.Device {
 		check(err)
 
 		dev := pluginapi.Device{
-			ID:		d.UUID,
-			Health:	pluginapi.Healthy,
+			ID:     d.UUID,
+			Health: pluginapi.Healthy,
 		}
 		if d.CPUAffinity != nil {
 			dev.Topology = &pluginapi.TopologyInfo{
@@ -102,7 +113,13 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		// FIXME: formalize the full list and document it.
 		// http://docs.nvidia.com/deploy/xid-errors/index.html#topic_4
 		// Application errors: the GPU should still be healthy
-		if e.Edata == 31 || e.Edata == 43 || e.Edata == 45 {
+
+		// if e.Edata == 31 || e.Edata == 43 || e.Edata == 45 {
+		// 	continue
+		// }
+
+		if userAppErrorIDs[e.Edata] {
+			log.Printf("Skip XidError: Xid = %d.", e.Edata)
 			continue
 		}
 
